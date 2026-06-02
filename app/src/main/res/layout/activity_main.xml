@@ -226,6 +226,7 @@
             android:layout_marginBottom="16dp" />
 
         <TextView
+            android:id="@+id/tvHelpText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Swipe up from the trigger area to open the selected app. Enable Debug Mode to see the trigger areas as red overlays."
@@ -234,6 +235,7 @@
             android:lineSpacingExtra="4dp" />
 
         <TextView
+            android:id="@+id/tvLogCommand"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="View logs: adb logcat -s GestureOverlay"

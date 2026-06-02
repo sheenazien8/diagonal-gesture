@@ -84,10 +84,13 @@ class MainActivity : AppCompatActivity() {
 
         binding.switchDebug.setOnCheckedChangeListener { _, isChecked ->
             prefsManager.debugMode = isChecked
+            updateDebugModeUI(isChecked)
             if (isServiceRunning) {
                 GestureOverlayService.updateSettings(this)
             }
         }
+
+        updateDebugModeUI(prefsManager.debugMode)
 
         binding.btnSelectApp.setOnClickListener {
             if (!AppPicker.canDrawOverlays(this)) {
@@ -295,6 +298,12 @@ class MainActivity : AppCompatActivity() {
         prefsManager.isServiceEnabled = true
         GestureOverlayService.startService(this)
         updateServiceButtonState(true)
+    }
+
+    private fun updateDebugModeUI(isDebugEnabled: Boolean) {
+        val visibility = if (isDebugEnabled) View.VISIBLE else View.GONE 
+        binding.tvHelpText.visibility = visibility
+        binding.tvLogCommand.visibility = visibility
     }
 
     private fun updateServiceButtonState(running: Boolean) {
