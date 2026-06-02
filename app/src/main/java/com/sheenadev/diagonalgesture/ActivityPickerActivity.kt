@@ -66,15 +66,22 @@ class ActivityPickerActivity : AppCompatActivity() {
 
     private fun loadApps() {
         val pm = packageManager
-        val mainIntent = Intent(Intent.ACTION_MAIN, null).apply {
-            addCategory(Intent.CATEGORY_LAUNCHER)
-        }
-
-        val list = pm.queryIntentActivities(mainIntent, 0)
+        
+        val launcherApps = pm.queryIntentActivities(
+            Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) },
+            PackageManager.MATCH_ALL
+        )
+        
+        val infoApps = pm.queryIntentActivities(
+            Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_INFO) },
+            PackageManager.MATCH_ALL
+        )
+        
+        val allApps = (launcherApps + infoApps).distinctBy { it.activityInfo.packageName }
         appList.clear()
 
         val query = binding.searchView.query.toString()
-        for (info in list) {
+        for (info in allApps) {
             val appInfo = info.activityInfo.applicationInfo
             val appName = pm.getApplicationLabel(appInfo).toString()
             
