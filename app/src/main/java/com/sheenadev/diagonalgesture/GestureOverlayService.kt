@@ -35,9 +35,9 @@ class GestureOverlayService : Service() {
     companion object {
         private const val TAG = "GestureOverlay"
         private const val DEBUG = true
-        
+
         const val ACTION_UPDATE_SETTINGS = "update_settings"
-        
+
         private const val CHANNEL_ID = "gesture_service_channel"
         private const val NOTIFICATION_ID = 1001
         private const val EXTRA_ACTION = "action"
@@ -83,7 +83,7 @@ class GestureOverlayService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (DEBUG) Log.d(TAG, "onStartCommand: ${intent?.action}")
-        
+
         when (intent?.getStringExtra(EXTRA_ACTION)) {
             ACTION_STOP -> {
                 removeOverlays()
@@ -148,28 +148,29 @@ class GestureOverlayService : Service() {
     private fun createOverlays() {
         val position = prefsManager.triggerPosition
         if (position == GesturePreferenceManager.POSITION_BOTTOM_RIGHT || position == GesturePreferenceManager.POSITION_BOTH) {
-            overlayViewRight = createOverlayView(Gravity.END or Gravity.BOTTOM)
+            overlayViewRight = createOverlayView(Gravity.END or Gravity.BOTTOM, "right")
         }
         if (position == GesturePreferenceManager.POSITION_BOTTOM_LEFT || position == GesturePreferenceManager.POSITION_BOTH) {
-            overlayViewLeft = createOverlayView(Gravity.START or Gravity.BOTTOM)
+            overlayViewLeft = createOverlayView(Gravity.START or Gravity.BOTTOM, "left")
         }
         if (DEBUG) Log.d(TAG, "Overlays ready. R=${overlayViewRight != null}, L=${overlayViewLeft != null}")
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    private fun createOverlayView(gravity: Int): View? {
+    private fun createOverlayView(gravity: Int, side: String): View? {
         val density = resources.displayMetrics.density
-        
-        // Use configurable dimensions or defaults
+
         val widthDp = if (prefsManager.areaWidthDp > 0) prefsManager.areaWidthDp else OVERLAY_WIDTH_DP
         val heightDp = if (prefsManager.areaHeightDp > 0) prefsManager.areaHeightDp else OVERLAY_HEIGHT_DP
-        
+
         val widthPx = (widthDp * density).toInt()
         val heightPx = (heightDp * density).toInt()
 
-        if (DEBUG) Log.d(TAG, "Creating overlay: ${widthDp}dp (${widthPx}px) x ${heightDp}dp (${heightPx}px), gravity=$gravity")
+        if (DEBUG) Log.d(TAG, "Creating overlay: ${widthDp}dp (${widthPx}px) x ${heightDp}dp (${heightPx}px), gravity=$gravity, side=$side")
 
         val layout = FrameLayout(this)
+        layout.tag = side
+
         if (prefsManager.debugMode) {
             layout.setBackgroundColor(android.graphics.Color.argb(128, 255, 0, 0))
         }
@@ -210,7 +211,7 @@ class GestureOverlayService : Service() {
                 if (DEBUG) Log.d(TAG, "DOWN Y=${startY.toInt()}, threshold=${prefsManager.swipeThreshold}")
                 return true
             }
-            
+
             MotionEvent.ACTION_MOVE -> {
                 if (isTracking) {
                     val deltaY = startY - event.rawY
@@ -220,12 +221,12 @@ class GestureOverlayService : Service() {
                     if (deltaY > prefsManager.swipeThreshold) {
                         isTracking = false
                         if (DEBUG) Log.w(TAG, "SWIPE TRIGGERED! dy=$deltaY")
-                        launchTargetApp()
+                        launchTargetApp(view.tag as String)
                     }
                 }
                 return true
             }
-            
+
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 if (isTracking) {
                     val deltaY = startY - event.rawY
@@ -233,11 +234,10 @@ class GestureOverlayService : Service() {
                         val status = if (deltaY > prefsManager.swipeThreshold) "TRIGGERED" else "not enough"
                         Log.d(TAG, "UP deltaY=$deltaY, threshold=${prefsManager.swipeThreshold} - $status")
                     }
-                    // Also trigger on UP if deltaY exceeds threshold (in case MOVE missed some)
                     if (deltaY > prefsManager.swipeThreshold) {
                         isTracking = false
                         if (DEBUG) Log.w(TAG, "SWIPE on UP! dy=$deltaY")
-                        launchTargetApp()
+                        launchTargetApp(view.tag as String)
                     }
                 }
                 isTracking = false
@@ -248,17 +248,29 @@ class GestureOverlayService : Service() {
         return true
     }
 
-    private fun launchTargetApp() {
-        val packageName = prefsManager.targetAppPackage
-        val activityName = prefsManager.targetActivityName
-        
+    private fun launchTargetApp(side: String) {
+        val packageName: String
+        val activityName: String
+
+        when (side) {
+            "right" -> {
+                packageName = prefsManager.rightAppPackage
+                activityName = prefsManager.rightActivityName
+            }
+            "left" -> {
+                packageName = prefsManager.leftAppPackage
+                activityName = prefsManager.leftActivityName
+            }
+            else -> return
+        }
+
         if (packageName.isEmpty()) {
-            if (DEBUG) Log.e(TAG, "No target app!")
+            if (DEBUG) Log.e(TAG, "No target app for side=$side")
             return
         }
 
-        if (DEBUG) Log.d(TAG, "Launching: $packageName ${if (activityName.isNotEmpty()) "/ $activityName" else ""}")
-        
+        if (DEBUG) Log.d(TAG, "Launching side=$side: package=$packageName component=${if (activityName.isNotEmpty()) activityName else "default"}")
+
         val intent = if (activityName.isNotEmpty()) {
             Intent().apply {
                 component = android.content.ComponentName(packageName, activityName)
@@ -266,7 +278,7 @@ class GestureOverlayService : Service() {
         } else {
             packageManager.getLaunchIntentForPackage(packageName)
         }
-        
+
         if (intent != null) {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             startActivity(intent)

@@ -8,8 +8,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.provider.Settings
 import android.view.View
 import android.widget.AdapterView
@@ -50,14 +48,23 @@ class MainActivity : AppCompatActivity() {
     private val appPickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (result.resultCode == RESULT_OK) {
-            val packageName = result.data?.getStringExtra(ActivityPickerActivity.EXTRA_PACKAGE_NAME) ?: return@registerForActivityResult
-            val appName = result.data?.getStringExtra(ActivityPickerActivity.EXTRA_APP_NAME) ?: ""
-            val activityName = result.data?.getStringExtra(ActivityPickerActivity.EXTRA_ACTIVITY_NAME) ?: ""
-            val activityLabel = result.data?.getStringExtra(ActivityPickerActivity.EXTRA_ACTIVITY_LABEL) ?: ""
-            
-            prefsManager.saveTargetApp(packageName, appName, activityName, activityLabel)
-            updateAppSelectionUI(appName, activityLabel)
+        if (result.resultCode != RESULT_OK) return@registerForActivityResult
+        val data = result.data ?: return@registerForActivityResult
+        val packageName = data.getStringExtra(ActivityPickerActivity.EXTRA_PACKAGE_NAME) ?: return@registerForActivityResult
+        val appName = data.getStringExtra(ActivityPickerActivity.EXTRA_APP_NAME) ?: ""
+        val activityName = data.getStringExtra(ActivityPickerActivity.EXTRA_ACTIVITY_NAME) ?: ""
+        val activityLabel = data.getStringExtra(ActivityPickerActivity.EXTRA_ACTIVITY_LABEL) ?: ""
+        val side = data.getStringExtra(ActivityPickerActivity.EXTRA_SIDE) ?: ""
+
+        when (side) {
+            "right" -> {
+                prefsManager.saveRightTargetApp(packageName, appName, activityName, activityLabel)
+                updateRightAppSelectionUI(appName, activityLabel)
+            }
+            "left" -> {
+                prefsManager.saveLeftTargetApp(packageName, appName, activityName, activityLabel)
+                updateLeftAppSelectionUI(appName, activityLabel)
+            }
         }
     }
 
@@ -92,21 +99,37 @@ class MainActivity : AppCompatActivity() {
 
         updateDebugModeUI(prefsManager.debugMode)
 
-        binding.btnSelectApp.setOnClickListener {
-            if (!AppPicker.canDrawOverlays(this)) {
-                requestOverlayPermission()
-                return@setOnClickListener
-            }
-            appPickerLauncher.launch(Intent(this, ActivityPickerActivity::class.java))
+        binding.btnSelectAppRight.setOnClickListener {
+            launchAppPicker("right")
         }
 
-        binding.btnClearTarget.setOnClickListener {
-            prefsManager.clearTargetApp()
-            updateAppSelectionUI("")
+        binding.btnSelectAppLeft.setOnClickListener {
+            launchAppPicker("left")
+        }
+
+        binding.btnClearTargetRight.setOnClickListener {
+            prefsManager.clearRightTargetApp()
+            updateRightAppSelectionUI("")
+        }
+
+        binding.btnClearTargetLeft.setOnClickListener {
+            prefsManager.clearLeftTargetApp()
+            updateLeftAppSelectionUI("")
         }
 
         setupPositionSpinner()
         setupSizeSeekBars()
+    }
+
+    private fun launchAppPicker(side: String) {
+        if (!AppPicker.canDrawOverlays(this)) {
+            requestOverlayPermission()
+            return
+        }
+        val intent = Intent(this, ActivityPickerActivity::class.java).apply {
+            putExtra(ActivityPickerActivity.EXTRA_SIDE, side)
+        }
+        appPickerLauncher.launch(intent)
     }
 
     private fun setupPositionSpinner() {
@@ -118,6 +141,9 @@ class MainActivity : AppCompatActivity() {
         binding.spinnerPosition.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 prefsManager.triggerPosition = position
+                if (isServiceRunning) {
+                    GestureOverlayService.updateSettings(this@MainActivity)
+                }
             }
 
             override fun onNothingSelected(parent: AdapterView<*>?) {}
@@ -158,17 +184,6 @@ class MainActivity : AppCompatActivity() {
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
 
-        binding.spinnerPosition.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                prefsManager.triggerPosition = position
-                if (isServiceRunning) {
-                    GestureOverlayService.updateSettings(this@MainActivity)
-                }
-            }
-
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
-
         binding.seekbarThreshold.progress = prefsManager.swipeThreshold
 
         binding.seekbarThreshold.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -208,30 +223,37 @@ class MainActivity : AppCompatActivity() {
         updateSizeLabels()
         updateThresholdLabel()
 
-        if (prefsManager.hasTargetApp()) {
-            val activityLabel = prefsManager.targetActivityLabel
-            updateAppSelectionUI(prefsManager.targetAppName, activityLabel)
+        if (prefsManager.hasRightTargetApp()) {
+            updateRightAppSelectionUI(prefsManager.rightAppName, prefsManager.rightActivityLabel)
         } else {
-            updateAppSelectionUI("")
+            updateRightAppSelectionUI("")
+        }
+
+        if (prefsManager.hasLeftTargetApp()) {
+            updateLeftAppSelectionUI(prefsManager.leftAppName, prefsManager.leftActivityLabel)
+        } else {
+            updateLeftAppSelectionUI("")
         }
     }
 
-    private fun updateAppSelectionUI(appName: String, activityLabel: String = "") {
-        val displayText = if (activityLabel.isNotEmpty()) {
-            "$appName → $activityLabel"
-        } else if (appName.isNotEmpty()) {
-            appName
-        } else {
-            "No app selected"
+    private fun buildDisplayText(appName: String, activityLabel: String): String {
+        return when {
+            activityLabel.isNotEmpty() -> "$appName → $activityLabel"
+            appName.isNotEmpty() -> appName
+            else -> "No app selected"
         }
-        
-        if (appName.isEmpty()) {
-            binding.tvSelectedApp.text = displayText
-            binding.btnClearTarget.visibility = View.GONE
-        } else {
-            binding.tvSelectedApp.text = displayText
-            binding.btnClearTarget.visibility = View.VISIBLE
-        }
+    }
+
+    private fun updateRightAppSelectionUI(appName: String, activityLabel: String = "") {
+        val displayText = buildDisplayText(appName, activityLabel)
+        binding.tvSelectedAppRight.text = displayText
+        binding.btnClearTargetRight.visibility = if (appName.isEmpty()) View.GONE else View.VISIBLE
+    }
+
+    private fun updateLeftAppSelectionUI(appName: String, activityLabel: String = "") {
+        val displayText = buildDisplayText(appName, activityLabel)
+        binding.tvSelectedAppLeft.text = displayText
+        binding.btnClearTargetLeft.visibility = if (appName.isEmpty()) View.GONE else View.VISIBLE
     }
 
     private fun updateOverlayPermissionStatus() {
@@ -255,7 +277,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        if (!prefsManager.hasTargetApp()) {
+        if (!prefsManager.hasAnyTargetApp()) {
             android.widget.Toast.makeText(
                 this,
                 "Please select a target app first",
@@ -301,7 +323,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateDebugModeUI(isDebugEnabled: Boolean) {
-        val visibility = if (isDebugEnabled) View.VISIBLE else View.GONE 
+        val visibility = if (isDebugEnabled) View.VISIBLE else View.GONE
         binding.tvHelpText.visibility = visibility
         binding.tvLogCommand.visibility = visibility
     }

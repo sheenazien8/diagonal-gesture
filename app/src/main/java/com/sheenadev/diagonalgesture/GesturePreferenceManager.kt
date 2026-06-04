@@ -8,18 +8,33 @@ class GesturePreferenceManager(context: Context) {
 
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+    init {
+        migrateLegacyTarget()
+    }
+
     companion object {
         private const val PREFS_NAME = "gesture_prefs"
         private const val KEY_ENABLED = "service_enabled"
-        private const val KEY_TARGET_APP = "target_app_package"
-        private const val KEY_TARGET_NAME = "target_app_name"
-        private const val KEY_TARGET_ACTIVITY = "target_activity_name"
-        private const val KEY_TARGET_ACTIVITY_LABEL = "target_activity_label"
         private const val KEY_TRIGGER_POSITION = "trigger_position"
         private const val KEY_AREA_WIDTH = "area_width_dp"
         private const val KEY_AREA_HEIGHT = "area_height_dp"
         private const val KEY_SWIPE_THRESHOLD = "swipe_threshold"
         private const val KEY_DEBUG_MODE = "debug_mode"
+
+        private const val KEY_RIGHT_TARGET_APP = "right_target_app_package"
+        private const val KEY_RIGHT_TARGET_NAME = "right_target_app_name"
+        private const val KEY_RIGHT_TARGET_ACTIVITY = "right_target_activity_name"
+        private const val KEY_RIGHT_TARGET_ACTIVITY_LABEL = "right_target_activity_label"
+
+        private const val KEY_LEFT_TARGET_APP = "left_target_app_package"
+        private const val KEY_LEFT_TARGET_NAME = "left_target_app_name"
+        private const val KEY_LEFT_TARGET_ACTIVITY = "left_target_activity_name"
+        private const val KEY_LEFT_TARGET_ACTIVITY_LABEL = "left_target_activity_label"
+
+        private const val KEY_TARGET_APP = "target_app_package"
+        private const val KEY_TARGET_NAME = "target_app_name"
+        private const val KEY_TARGET_ACTIVITY = "target_activity_name"
+        private const val KEY_TARGET_ACTIVITY_LABEL = "target_activity_label"
 
         const val POSITION_BOTTOM_RIGHT = 0
         const val POSITION_BOTTOM_LEFT = 1
@@ -33,23 +48,6 @@ class GesturePreferenceManager(context: Context) {
     var isServiceEnabled: Boolean
         get() = prefs.getBoolean(KEY_ENABLED, true)
         set(value) = prefs.edit().putBoolean(KEY_ENABLED, value).apply()
-
-    var targetAppPackage: String
-        get() = prefs.getString(KEY_TARGET_APP, "") ?: ""
-        set(value) = prefs.edit().putString(KEY_TARGET_APP, value).apply()
-
-    var targetAppName: String
-        get() = prefs.getString(KEY_TARGET_NAME, "") ?: ""
-        set(value) = prefs.edit().putString(KEY_TARGET_NAME, value).apply()
-
-    var targetActivityName: String
-        get() = prefs.getString(KEY_TARGET_ACTIVITY, "") ?: ""
-        set(value) = prefs.edit().putString(KEY_TARGET_ACTIVITY, value).apply()
-
-
-    var targetActivityLabel: String
-        get() = prefs.getString(KEY_TARGET_ACTIVITY_LABEL, "") ?: ""
-        set(value) = prefs.edit().putString(KEY_TARGET_ACTIVITY_LABEL, value).apply()
 
     var triggerPosition: Int
         get() = prefs.getInt(KEY_TRIGGER_POSITION, POSITION_BOTTOM_RIGHT)
@@ -71,23 +69,97 @@ class GesturePreferenceManager(context: Context) {
         get() = prefs.getBoolean(KEY_DEBUG_MODE, false)
         set(value) = prefs.edit().putBoolean(KEY_DEBUG_MODE, value).apply()
 
-    fun hasTargetApp(): Boolean = targetAppPackage.isNotEmpty()
+    var rightAppPackage: String
+        get() = prefs.getString(KEY_RIGHT_TARGET_APP, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_RIGHT_TARGET_APP, value).apply()
 
-    fun saveTargetApp(packageName: String, appName: String, activityName: String = "", activityLabel: String = "") {
+    var rightAppName: String
+        get() = prefs.getString(KEY_RIGHT_TARGET_NAME, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_RIGHT_TARGET_NAME, value).apply()
+
+    var rightActivityName: String
+        get() = prefs.getString(KEY_RIGHT_TARGET_ACTIVITY, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_RIGHT_TARGET_ACTIVITY, value).apply()
+
+    var rightActivityLabel: String
+        get() = prefs.getString(KEY_RIGHT_TARGET_ACTIVITY_LABEL, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_RIGHT_TARGET_ACTIVITY_LABEL, value).apply()
+
+    var leftAppPackage: String
+        get() = prefs.getString(KEY_LEFT_TARGET_APP, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_LEFT_TARGET_APP, value).apply()
+
+    var leftAppName: String
+        get() = prefs.getString(KEY_LEFT_TARGET_NAME, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_LEFT_TARGET_NAME, value).apply()
+
+    var leftActivityName: String
+        get() = prefs.getString(KEY_LEFT_TARGET_ACTIVITY, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_LEFT_TARGET_ACTIVITY, value).apply()
+
+    var leftActivityLabel: String
+        get() = prefs.getString(KEY_LEFT_TARGET_ACTIVITY_LABEL, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_LEFT_TARGET_ACTIVITY_LABEL, value).apply()
+
+    fun hasAnyTargetApp(): Boolean = hasRightTargetApp() || hasLeftTargetApp()
+
+    fun hasRightTargetApp(): Boolean = rightAppPackage.isNotEmpty()
+
+    fun hasLeftTargetApp(): Boolean = leftAppPackage.isNotEmpty()
+
+    fun saveRightTargetApp(packageName: String, appName: String, activityName: String = "", activityLabel: String = "") {
         prefs.edit()
-            .putString(KEY_TARGET_APP, packageName)
-            .putString(KEY_TARGET_NAME, appName)
-            .putString(KEY_TARGET_ACTIVITY, activityName)
-            .putString(KEY_TARGET_ACTIVITY_LABEL, activityLabel)
+            .putString(KEY_RIGHT_TARGET_APP, packageName)
+            .putString(KEY_RIGHT_TARGET_NAME, appName)
+            .putString(KEY_RIGHT_TARGET_ACTIVITY, activityName)
+            .putString(KEY_RIGHT_TARGET_ACTIVITY_LABEL, activityLabel)
             .apply()
     }
 
-    fun clearTargetApp() {
+    fun saveLeftTargetApp(packageName: String, appName: String, activityName: String = "", activityLabel: String = "") {
         prefs.edit()
-            .remove(KEY_TARGET_APP)
-            .remove(KEY_TARGET_NAME)
-            .remove(KEY_TARGET_ACTIVITY)
-            .remove(KEY_TARGET_ACTIVITY_LABEL)
+            .putString(KEY_LEFT_TARGET_APP, packageName)
+            .putString(KEY_LEFT_TARGET_NAME, appName)
+            .putString(KEY_LEFT_TARGET_ACTIVITY, activityName)
+            .putString(KEY_LEFT_TARGET_ACTIVITY_LABEL, activityLabel)
             .apply()
+    }
+
+    fun clearRightTargetApp() {
+        prefs.edit()
+            .remove(KEY_RIGHT_TARGET_APP)
+            .remove(KEY_RIGHT_TARGET_NAME)
+            .remove(KEY_RIGHT_TARGET_ACTIVITY)
+            .remove(KEY_RIGHT_TARGET_ACTIVITY_LABEL)
+            .apply()
+    }
+
+    fun clearLeftTargetApp() {
+        prefs.edit()
+            .remove(KEY_LEFT_TARGET_APP)
+            .remove(KEY_LEFT_TARGET_NAME)
+            .remove(KEY_LEFT_TARGET_ACTIVITY)
+            .remove(KEY_LEFT_TARGET_ACTIVITY_LABEL)
+            .apply()
+    }
+
+    private fun migrateLegacyTarget() {
+        val legacyApp = prefs.getString(KEY_TARGET_APP, "") ?: ""
+        if (legacyApp.isNotEmpty()) {
+            if (rightAppPackage.isEmpty()) {
+                prefs.edit()
+                    .putString(KEY_RIGHT_TARGET_APP, legacyApp)
+                    .putString(KEY_RIGHT_TARGET_NAME, prefs.getString(KEY_TARGET_NAME, "") ?: "")
+                    .putString(KEY_RIGHT_TARGET_ACTIVITY, prefs.getString(KEY_TARGET_ACTIVITY, "") ?: "")
+                    .putString(KEY_RIGHT_TARGET_ACTIVITY_LABEL, prefs.getString(KEY_TARGET_ACTIVITY_LABEL, "") ?: "")
+                    .apply()
+            }
+            prefs.edit()
+                .remove(KEY_TARGET_APP)
+                .remove(KEY_TARGET_NAME)
+                .remove(KEY_TARGET_ACTIVITY)
+                .remove(KEY_TARGET_ACTIVITY_LABEL)
+                .apply()
+        }
     }
 }

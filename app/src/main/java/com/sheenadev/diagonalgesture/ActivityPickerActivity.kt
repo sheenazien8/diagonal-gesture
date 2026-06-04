@@ -164,14 +164,16 @@ class ActivityPickerActivity : AppCompatActivity() {
         val pm = packageManager
         val appName = pm.getApplicationLabel(launcherApp.activityInfo.applicationInfo).toString()
         val activityLabel = activityInfo.name.substringAfterLast('.')
+        val side = intent.getStringExtra(EXTRA_SIDE) ?: ""
 
-        val intent = Intent().apply {
+        val resultIntent = Intent().apply {
             putExtra(EXTRA_PACKAGE_NAME, launcherApp.activityInfo.packageName)
             putExtra(EXTRA_APP_NAME, appName)
             putExtra(EXTRA_ACTIVITY_NAME, activityInfo.name)
             putExtra(EXTRA_ACTIVITY_LABEL, activityLabel)
+            putExtra(EXTRA_SIDE, side)
         }
-        setResult(RESULT_OK, intent)
+        setResult(RESULT_OK, resultIntent)
         finish()
     }
 
@@ -209,5 +211,6 @@ class ActivityPickerActivity : AppCompatActivity() {
         const val EXTRA_APP_NAME = "app_name"
         const val EXTRA_ACTIVITY_NAME = "activity_name"
         const val EXTRA_ACTIVITY_LABEL = "activity_label"
+        const val EXTRA_SIDE = "side"
     }
 }
